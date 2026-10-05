@@ -13,7 +13,7 @@ datasets:
     target: basicsr.data.pathology.CodeformerDataset
     params:
       # training file list path
-      file_list: /home/ziyiliu/jhcnas3/Pathology/Patches/CAMELYON16
+      file_list: path to traning data
       mode: train
       stage: 1
       file_backend_cfg:
@@ -56,7 +56,7 @@ datasets:
     target: basicsr.data.pathology.CodeformerDataset
     params:
       # validation file list path
-      file_list: /home/ziyiliu/jhcnas3/Pathology/Patches/CAMELYON16
+      file_list: path to traning data
       mode: valid
       stage: 1
       file_backend_cfg:

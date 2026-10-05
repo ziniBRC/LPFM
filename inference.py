@@ -3,7 +3,7 @@ from argparse import ArgumentParser, Namespace
 import torch
 
 from accelerate.utils import set_seed
-from diffbir.inference import (
+from modules.inference import (
     BSRInferenceLoop,
     BFRInferenceLoop,
     BIDInferenceLoop,
@@ -58,7 +58,7 @@ def parse_args() -> Namespace:
     parser.add_argument(
         "--task",
         type=str,
-        default="sr",
+        default="denoise",
         choices=["sr", "face", "denoise", "unaligned_face"],
         help="Task you want to do. Ignore this option if you are using self-trained model.",
     )

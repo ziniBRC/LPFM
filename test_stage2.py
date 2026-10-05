@@ -14,9 +14,10 @@ from einops import rearrange
 from tqdm import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn import functional as F
-from diffbir.model import ControlLDM, SwinIR, Diffusion
-from diffbir.utils.common import instantiate_from_config, to, wavelet_reconstruction, low_freq_wavelet_reconstruction
-from diffbir.sampler import SpacedSampler
+from modules.model import ControlLDM, SwinIR, Diffusion
+from modules.utils.common import instantiate_from_config, to, wavelet_reconstruction, low_freq_wavelet_reconstruction
+from modules.sampler import SpacedSampler
+
 
 def main(args) -> None:
     # Setup accelerator:
@@ -59,16 +60,16 @@ def main(args) -> None:
                 f"weights initialized from scratch: {init_with_scratch}"
             )
 
-    swinir: SwinIR = instantiate_from_config(cfg.model.swinir)
-    sd = torch.load(cfg.train.swinir_path, map_location="cpu")
+    stage1model: SwinIR = instantiate_from_config(cfg.model.stage1)
+    sd = torch.load(cfg.train.stage1_path, map_location="cpu")
     if "state_dict" in sd:
         sd = sd["state_dict"]
     sd = {
         (k[len("module.") :] if k.startswith("module.") else k): v
         for k, v in sd.items()
     }
-    swinir.load_state_dict(sd, strict=True)
-    for p in swinir.parameters():
+    stage1model.load_state_dict(sd, strict=True)
+    for p in stage1model.parameters():
         p.requires_grad = False
     if accelerator.is_main_process:
         print(f"load SwinIR from {cfg.train.swinir_path}")
@@ -95,7 +96,7 @@ def main(args) -> None:
 
     # Prepare models for training:
     cldm.eval().to(device)
-    swinir.eval().to(device)
+    stage1model.eval().to(device)
     diffusion.to(device)
     cldm, opt, loader = accelerator.prepare(cldm, opt, loader)
     pure_cldm: ControlLDM = accelerator.unwrap_model(cldm)
@@ -114,15 +115,6 @@ def main(args) -> None:
         writer = SummaryWriter(exp_dir)
         print(f"Training for {max_steps} steps...")
 
-    # template_path = "/mnt/data/ziyiliu/virtual_staining/he2pas_uniform/org_test/a_handled_A-05/1_15/he_75616_11840_256.png"
-    # template = Image.open(template_path).convert("RGB")
-    # template = np.array(template)
-    # template = (template[..., ::-1] / 255.0).astype(np.float32)
-    # template = template[..., ::-1].astype(np.float32)
-    # template = torch.from_numpy(template)
-    # template = rearrange(template[None, :], "b h w c -> b c h w").contiguous().float()
-    # template = template.cuda()
-
     while global_step < max_steps:
         pbar = tqdm(
             iterable=None,
@@ -140,7 +132,7 @@ def main(args) -> None:
 
             with torch.no_grad():
                 z_0 = pure_cldm.vae_encode(gt)
-                clean = swinir(lq)
+                clean = stage1model(lq)
                 cond = pure_cldm.prepare_condition(clean, prompt)
                 # noise augmentation
                 cond_aug = copy.deepcopy(cond)
@@ -183,12 +175,12 @@ def main(args) -> None:
                 condition_decoded = (pure_cldm.vae_decode(log_cond["c_img"]) + 1) / 2 * 255
                 condition_aug_decoded = (pure_cldm.vae_decode(log_cond_aug["c_img"]) + 1) / 2 * 255
 
-                samples = F.interpolate(
-                wavelet_reconstruction(samples, gt),
-                size=(256,256),
-                mode="bicubic",
-                antialias=True,
-                )
+                # samples = F.interpolate(
+                # wavelet_reconstruction(samples, gt),
+                # size=(256,256),
+                # mode="bicubic",
+                # antialias=True,
+                # )
 
                 samples = samples.clip(0, 255)
                 gt = gt.clip(0, 255)
@@ -197,27 +189,23 @@ def main(args) -> None:
                 condition_decoded = condition_decoded.clip(0, 255)
                 condition_aug_decoded = condition_aug_decoded.clip(0, 255)
 
-                # save_dir = '/mnt/data/ziyiliu/test_images/hemit/af2he_diff_test_uniform'
-                # save_dir = '/mnt/data/ziyiliu/test_images/he2pas_degraded/diff_test_uniform'
-                # save_dir = '/mnt/data/ziyiliu/test_images/he2pas/af2he_diff_test_uniform'
-                # gt_dir = '/mnt/data/ziyiliu/test_images/hemit/gt'
-                refinement_dir = '/mnt/data/ziyiliu/test_images/he2pas/diff_refinement'
-                autoencoder_dir = '/mnt/data/ziyiliu/test_images/he2pas/diff_autoencoder'
+                refinement_dir = '/mnt/data/ziyiliu/test_images/hemit/diff_refinement'
+                autoencoder_dir = '/mnt/data/ziyiliu/test_images/hemit/diff_autoencoder'
                 os.makedirs(refinement_dir, exist_ok=True)
                 os.makedirs(autoencoder_dir, exist_ok=True)
                 Results = Image.fromarray((rearrange(samples[0, :].detach().cpu().numpy(), 'c h w -> h w c')).astype(np.uint8))
                 # Results.save('samples.png')
                 print(f'save {os.path.join(refinement_dir, lq_name[0])}')
                 Results.save(os.path.join(refinement_dir, lq_name[0]))
-                Results = Image.fromarray((rearrange(gt[0, :].detach().cpu().numpy(), 'c h w -> h w c')).astype(np.uint8))
+                # Results = Image.fromarray((rearrange(gt[0, :].detach().cpu().numpy(), 'c h w -> h w c')).astype(np.uint8))
                 # Results.save(os.path.join(gt_dir, lq_name[0]))
                 # Results.save('gt.png')
                 # Results = Image.fromarray((rearrange(log_lq[0, :].detach().cpu().numpy(), 'c h w -> h w c')).astype(np.uint8))
                 # Results.save('lq.png')
-                Results = Image.fromarray((rearrange(log_clean[0, :].detach().cpu().numpy(), 'c h w -> h w c')).astype(np.uint8))
+                # Results = Image.fromarray((rearrange(log_clean[0, :].detach().cpu().numpy(), 'c h w -> h w c')).astype(np.uint8))
                 # Results.save('condition.png')
-                print(f'save {os.path.join(autoencoder_dir, lq_name[0])}')
-                Results.save(os.path.join(autoencoder_dir, lq_name[0]))
+                # print(f'save {os.path.join(autoencoder_dir, lq_name[0])}')
+                # Results.save(os.path.join(autoencoder_dir, lq_name[0]))
                 # Results = Image.fromarray((rearrange(condition_decoded[0, :].detach().cpu().numpy(), 'c h w -> h w c')).astype(np.uint8))
                 # Results.save('condition_decoded.png')
                 print('pass')

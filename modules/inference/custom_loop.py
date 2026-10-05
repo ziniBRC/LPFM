@@ -83,7 +83,7 @@ class CustomInferenceLoop(InferenceLoop):
 
     def load_cleaner(self) -> None:
         # NOTE: Use Restormer as stage-1 model. Change it if you want.
-        yaml_file = 'configs/inference/GaussianColorDenoising_Restormer.yml'
+        yaml_file = 'configs/inference/stage1.yml'
         weights = "/mnt/data/ziyiliu/checkpoint/restormor_gaussian_color_denoising_blind.pth"
         x = yaml.load(open(yaml_file, mode='r'), Loader=Loader)
         self.cleaner: Restormer = Restormer(**x['network_g'])

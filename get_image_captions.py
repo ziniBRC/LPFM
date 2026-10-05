@@ -17,20 +17,20 @@ from einops import rearrange
 from tqdm import tqdm
 import lpips
 
-from diffbir.model import SwinIR
-from diffbir.utils.common import instantiate_from_config, calculate_psnr_pt, to
+from modules.model import SwinIR
+from modules.utils.common import instantiate_from_config, calculate_psnr_pt, to
 from PIL import Image
 from omegaconf import OmegaConf
 from tqdm import tqdm
 from accelerate.utils import set_seed
 
-from diffbir.model.cldm import ControlLDM
-from diffbir.model.swinir import SwinIR
-from diffbir.inference.pretrained_models import MODELS
-from diffbir.utils.common import instantiate_from_config, load_model_from_url
-from diffbir.model.gaussian_diffusion import Diffusion
-from diffbir.pipeline import SwinIRPipeline
-from diffbir.utils.caption import (
+from modules.model.cldm import ControlLDM
+from modules.model.swinir import SwinIR
+from modules.inference.pretrained_models import MODELS
+from modules.utils.common import instantiate_from_config, load_model_from_url
+from modules.model.gaussian_diffusion import Diffusion
+from modules.pipeline import SwinIRPipeline
+from modules.utils.caption import (
     EmptyCaptioner,
     LLaVACaptioner,
     RAMCaptioner,
